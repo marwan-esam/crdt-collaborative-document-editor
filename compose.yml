@@ -1,0 +1,59 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: doc_user
+      POSTGRES_PASSWORD: strictpassword
+      POSTGRES_DB: docs_db
+    volumes:
+      - pg_doc_data:/var/lib/postgresql/pg_doc_data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U doc_user -d docs_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+  
+  redis:
+    image: redis:7-alpine
+  
+  api-worker-1:
+    build: .
+    ports:
+      - "8001:8000"
+    develop:
+      watch:
+        - action: sync
+          path: .
+          target: /code
+          ignore:
+            - .env
+
+    env_file:
+      - .env
+    depends_on:
+      redis:
+        condition: service_started
+      postgres:
+        condition: service_healthy
+  api-worker-2:
+    build: .
+    ports:
+      - "8002:8000"
+    develop:
+      watch:
+        - action: sync
+          path: .
+          target: /code
+          ignore:
+            - .env
+
+    env_file:
+      - .env
+    depends_on:
+      redis:
+        condition: service_started
+      postgres:
+        condition: service_healthy
+
+volumes:
+  pg_doc_data:
