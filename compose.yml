@@ -20,6 +20,8 @@ services:
     build: .
     ports:
       - "8001:8000"
+    volumes:
+      - .:/code
     develop:
       watch:
         - action: sync
@@ -39,6 +41,8 @@ services:
     build: .
     ports:
       - "8002:8000"
+    volumes:
+      - .:/code
     develop:
       watch:
         - action: sync
