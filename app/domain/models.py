@@ -1,6 +1,6 @@
 import uuid
 from uuid import UUID
-from sqlalchemy import Uuid, String, Text
+from sqlalchemy import Uuid, String, Text, JSON
 from sqlalchemy.orm import mapped_column, Mapped
 from app.db.database import Base
 
@@ -9,4 +9,4 @@ class Document(Base):
 
   id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
   title: Mapped[str] = mapped_column(String, default="Untitled Document")
-  content: Mapped[str] = mapped_column(Text, default="")
+  crdt_state: Mapped[list] = mapped_column(JSON, default=list)

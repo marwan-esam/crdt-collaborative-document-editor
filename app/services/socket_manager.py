@@ -2,8 +2,12 @@ import asyncio
 import json
 import redis.asyncio as redis
 from fastapi import WebSocket
+from sqlalchemy import select
+from pydantic import TypeAdapter
 from app.core.config import settings
 from app.schemas.crdt import PositionIdentifier, Character, find_insert_index
+from app.domain.models import Document
+from app.db.database import SessionLocal
 
 class ConnectionManager:
   def __init__(self):
@@ -13,30 +17,57 @@ class ConnectionManager:
     self.redis_client = redis.from_url(settings.REDIS_URL, decode_responses=True)
     self.pubsub = self.redis_client.pubsub()
     self.listener_task: asyncio.Task | None = None
+    self.autosave_task: asyncio.Task | None = None
 
 
   async def start_listening(self):
     await self.pubsub.subscribe("system_channel")
     self.listener_task = asyncio.create_task(self._listen_to_redis())
+    self.autosave_task = asyncio.create_task(self._autosave_loop())
 
   async def connect(self, websocket: WebSocket, document_id: str, client_id: str):
     await websocket.accept()
 
     if document_id not in self.active_connections:
       self.active_connections[document_id] = {}
-      self.document_state[document_id] = []
+
+      async with SessionLocal() as db:
+        result = await db.execute(select(Document).where(str(Document.id) == document_id))
+        doc_record = result.scalar_one_or_none()
+
+        if doc_record and doc_record.crdt_state:
+          self.document_state[document_id] = TypeAdapter(list[Character]).validate_python(doc_record.crdt_state)
+        else:
+          self.document_state[document_id] = []
+
       await self.pubsub.subscribe(f"doc_channel:{document_id}")
 
     self.active_connections[document_id][client_id] = websocket
 
+    state_payload = json.dumps({
+      "action": "hydrate",
+      "state": [char.model_dump() for char in self.document_state[document_id]]
+    })
+
+    await websocket.send_text(state_payload)
+
   
-  def disconnect(self, websocket: WebSocket, document_id: str, client_id: str):
+  async def disconnect(self, websocket: WebSocket, document_id: str, client_id: str):
     if document_id in self.active_connections:
       if client_id in self.active_connections[document_id]:
         del self.active_connections[document_id][client_id]
 
 
       if not self.active_connections[document_id]:
+
+        async with SessionLocal() as db:
+          result = await db.execute(select(Document).where(str(Document.id) == document_id))
+          doc_record = result.scalar_one_or_none()
+
+          if doc_record:
+            doc_record.crdt_state = [char.model_dump() for char in self.document_state[document_id]]
+            await db.commit()
+
         del self.active_connections[document_id]
         if document_id in self.document_state:
           del self.document_state[document_id]
@@ -100,6 +131,32 @@ class ConnectionManager:
         await asyncio.sleep(5)
       except Exception as e:
         print(f"Error: {e}")
+
+  async def _autosave_loop(self):
+    while True:
+      await asyncio.sleep(10)
+
+      if not self.document_state:
+        continue
+
+      active_docs = list(self.document_state.items())
+
+      async with SessionLocal() as db:
+        for doc_id, crdt_array in active_docs:
+          try:
+            result = await db.execute(select(Document).where(str(Document.id) == doc_id))
+            doc_record = result.scalar_one_or_none()
+
+            if doc_record:
+              doc_record.crdt_state = [char.model_dump() for char in crdt_array]
+          
+          except Exception as e:
+            print(f"Autosave error for document {doc_id}: {e}")
+
+        try:
+          await db.commit()
+        except Exception as e:
+          print(f"Database commit error during autosave: {e}")
 
 
 
