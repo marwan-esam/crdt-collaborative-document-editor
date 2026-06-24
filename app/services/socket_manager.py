@@ -26,7 +26,6 @@ class ConnectionManager:
     self.autosave_task = asyncio.create_task(self._autosave_loop())
 
   async def connect(self, websocket: WebSocket, document_id: str, client_id: str):
-    await websocket.accept()
 
     if document_id not in self.active_connections:
       self.active_connections[document_id] = {}

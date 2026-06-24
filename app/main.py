@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager, suppress
 from fastapi import FastAPI
 from app.api.websockets import router as websocket_router
 from app.api.documents import router as documents_router
+from app.api.auth import router as auth_router
 from app.services.socket_manager import manager
 
 
@@ -25,7 +26,7 @@ app = FastAPI(title="Real-Time Docs API", lifespan=lifespan)
 
 app.include_router(websocket_router)
 app.include_router(documents_router)
-
+app.include_router(auth_router)
 
 @app.get("/")
 async def health_check():
