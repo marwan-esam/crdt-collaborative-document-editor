@@ -1,16 +1,18 @@
 from uuid import UUID
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.db.database import get_db
 from app.domain.models import Document
 from app.schemas.document import DocumentCreate, DocumentResponse
+from app.core.limiter import limiter
 
 router = APIRouter(prefix="/documents", tags=["Documents"])
 
 
 @router.post("/", response_model=DocumentResponse)
-async def create_document(doc_in: DocumentCreate, db: AsyncSession = Depends(get_db)):
+@limiter.limit("10/minute")
+async def create_document(request: Request, doc_in: DocumentCreate, db: AsyncSession = Depends(get_db)):
   new_doc = Document(title=doc_in.title)
   db.add(new_doc)
 

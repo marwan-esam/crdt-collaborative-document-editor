@@ -1,6 +1,9 @@
 import asyncio
 from contextlib import asynccontextmanager, suppress
 from fastapi import FastAPI
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from app.core.limiter import limiter
 from app.api.websockets import router as websocket_router
 from app.api.documents import router as documents_router
 from app.api.auth import router as auth_router
@@ -23,6 +26,8 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Real-Time Docs API", lifespan=lifespan)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 app.include_router(websocket_router)
 app.include_router(documents_router)

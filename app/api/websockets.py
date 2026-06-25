@@ -50,6 +50,11 @@ async def document_websocket(websocket: WebSocket, document_id: str):
     while True:
       data = await websocket.receive_text()
 
+      if len(data) > 1024 * 10:
+        print(f"[Security] Payload too large from {user_id}. Terminating...")
+        await websocket.close(code=status.WS_1009_MESSAGE_TOO_BIG)
+        return
+
       await manager.publish_to_redis(document_id, user_id, data)
 
   except WebSocketDisconnect:
