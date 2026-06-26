@@ -1,0 +1,28 @@
+name: Backend CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  test_and_verify:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+      
+      - name: Boot the Docker Cluster
+        run: docker compose up -d --build
+
+      - name: Wait for Cluster Health
+        run: sleep 10
+
+      - name: Execute Pytest Suite
+        run: docker compose exec -T api-worker-1 Pytest
+
+      - name: Tear Down and Clean Up
+        if: always()
+        run: docker compose down -v

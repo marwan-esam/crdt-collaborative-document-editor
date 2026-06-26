@@ -12,8 +12,23 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+
+  postgres-test:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: doc_user
+      POSTGRES_PASSWORD: strictpassword
+      POSTGRES_DB: docs_test_db
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U doc_user -d docs_test_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
   
   redis:
+    image: redis:7-alpine
+  
+  redis-test:
     image: redis:7-alpine
   
   api-worker-1:
@@ -37,6 +52,8 @@ services:
         condition: service_started
       postgres:
         condition: service_healthy
+      postgres-test:
+        condition: service_healthy
   api-worker-2:
     build: .
     ports:
@@ -57,6 +74,8 @@ services:
       redis:
         condition: service_started
       postgres:
+        condition: service_healthy
+      postgres-test:
         condition: service_healthy
 
 volumes:
