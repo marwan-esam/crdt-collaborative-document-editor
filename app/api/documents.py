@@ -6,13 +6,14 @@ from app.db.database import get_db
 from app.domain.models import Document
 from app.schemas.document import DocumentCreate, DocumentResponse
 from app.core.limiter import limiter
+from app.core.security import get_current_user_id
 
 router = APIRouter(prefix="/documents", tags=["Documents"])
 
 
 @router.post("/", response_model=DocumentResponse)
 @limiter.limit("10/minute")
-async def create_document(request: Request, doc_in: DocumentCreate, db: AsyncSession = Depends(get_db)):
+async def create_document(request: Request, doc_in: DocumentCreate, db: AsyncSession = Depends(get_db), user_id: str = Depends(get_current_user_id)):
   new_doc = Document(title=doc_in.title)
   db.add(new_doc)
 

@@ -1,15 +1,32 @@
 import asyncio
 import json
 import jwt
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, status
+from uuid import UUID
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, status, Depends
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 from app.services.socket_manager import manager
 from app.core.config import settings
+from app.db.database import get_db
+from app.domain.models import Document
 
 router = APIRouter()
 
 
 @router.websocket("/ws/doc/{document_id}")
-async def document_websocket(websocket: WebSocket, document_id: str):
+async def document_websocket(websocket: WebSocket, document_id: str, db: AsyncSession = Depends(get_db)):
+
+  try:
+    valid_uuid = UUID(document_id)
+  except ValueError:
+    await websocket.close(code=status.WS_1003_UNSUPPORTED_DATA)
+    return
+  
+  result = await db.execute(select(Document).where(Document.id == valid_uuid))
+
+  if not result.scalar_one_or_none():
+    await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+    return
 
   await websocket.accept()
 
@@ -60,4 +77,4 @@ async def document_websocket(websocket: WebSocket, document_id: str):
   except WebSocketDisconnect:
     pass
   finally:
-    manager.disconnect(websocket, document_id, user_id)
+    await manager.disconnect(websocket, document_id, user_id)
