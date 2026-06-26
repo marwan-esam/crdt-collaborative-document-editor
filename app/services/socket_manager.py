@@ -142,6 +142,13 @@ class ConnectionManager:
 
       async with SessionLocal() as db:
         for doc_id, crdt_array in active_docs:
+
+          lock_key = {f"lock:autosave:{doc_id}"}
+          accquired = await self.redis_client.set(lock_key, "locked", nx=True, ex=8)
+
+          if not accquired:
+            continue
+
           try:
             result = await db.execute(select(Document).where(str(Document.id) == doc_id))
             doc_record = result.scalar_one_or_none()

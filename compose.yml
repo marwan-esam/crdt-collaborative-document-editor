@@ -31,33 +31,10 @@ services:
   redis-test:
     image: redis:7-alpine
   
-  api-worker-1:
+  api:
     build: .
     ports:
-      - "8001:8000"
-    volumes:
-      - .:/code
-    develop:
-      watch:
-        - action: sync
-          path: .
-          target: /code
-          ignore:
-            - .env
-
-    env_file:
-      - .env
-    depends_on:
-      redis:
-        condition: service_started
-      postgres:
-        condition: service_healthy
-      postgres-test:
-        condition: service_healthy
-  api-worker-2:
-    build: .
-    ports:
-      - "8002:8000"
+      - "8000:8000"
     volumes:
       - .:/code
     develop:
