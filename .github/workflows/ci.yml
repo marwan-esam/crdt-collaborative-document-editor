@@ -27,7 +27,7 @@ jobs:
         run: sleep 10
 
       - name: Execute Pytest Suite
-        run: docker compose exec -T api Pytest
+        run: docker compose exec -T api pytest
 
       - name: Tear Down and Clean Up
         if: always()
