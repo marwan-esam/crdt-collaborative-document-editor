@@ -13,6 +13,12 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
+
+      - name: Create dummy .env file
+        run: |
+          echo "SECRET_KEY=dummy_secret_key_for_ci_pipeline" > .env
+          echo "DATABASE_URL=postgresql+asyncpg://test:test@postgres:5432/test" >> .env
+          echo "REDIS_URL=redis://redis:6379" >> .env
       
       - name: Boot the Docker Cluster
         run: docker compose up -d --build
