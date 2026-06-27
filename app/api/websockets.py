@@ -2,33 +2,38 @@ import asyncio
 import json
 import jwt
 from uuid import UUID
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, status, Depends
-from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, status
 from sqlalchemy import select
 from app.services.socket_manager import manager
 from app.core.config import settings
-from app.db.database import get_db
-from app.domain.models import Document
+from app.db.database import SessionLocal
+from app.domain.models import Document, ActivityLog
 
 router = APIRouter()
 
 
 @router.websocket("/ws/doc/{document_id}")
-async def document_websocket(websocket: WebSocket, document_id: str, db: AsyncSession = Depends(get_db)):
+async def document_websocket(websocket: WebSocket, document_id: str):
 
   try:
     valid_uuid = UUID(document_id)
   except ValueError:
     await websocket.close(code=status.WS_1003_UNSUPPORTED_DATA)
     return
+  try:
+    async with SessionLocal() as db:
+      result = await db.execute(select(Document).where(Document.id == valid_uuid))
+  except Exception as e:
+    print(f"Database session error: {e}")
+    return
   
-  result = await db.execute(select(Document).where(Document.id == valid_uuid))
-
   if not result.scalar_one_or_none():
     await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
     return
 
   await websocket.accept()
+
+  has_edited = False
 
   try:
 
@@ -51,6 +56,15 @@ async def document_websocket(websocket: WebSocket, document_id: str, db: AsyncSe
       await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
       return
     
+    join_log = ActivityLog(
+      user_id=UUID(user_id),
+      document_id=valid_uuid,
+      action="join"
+    )
+    async with SessionLocal() as db:
+      db.add(join_log)
+      await db.commit()
+    
   except asyncio.TimeoutError:
     print(f"[Security] Terminating idle connection on {document_id}")
     await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
@@ -58,7 +72,12 @@ async def document_websocket(websocket: WebSocket, document_id: str, db: AsyncSe
   
   except (json.JSONDecodeError, jwt.PyJWTError):
     print(f"[Security] Terminating invalid auth attempt on {document_id}")
-    websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+    await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+    return
+  
+  except Exception as e:
+    print(f"Database commit error during logging join activity: {e}")
+    await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
     return
   
   await manager.connect(websocket, document_id, user_id)
@@ -71,6 +90,21 @@ async def document_websocket(websocket: WebSocket, document_id: str, db: AsyncSe
         print(f"[Security] Payload too large from {user_id}. Terminating...")
         await websocket.close(code=status.WS_1009_MESSAGE_TOO_BIG)
         return
+      
+      if not has_edited:
+        has_edited = True
+        edit_log = ActivityLog(
+          user_id=UUID(user_id),
+          document_id=valid_uuid,
+          action="edit"
+        )
+        try:
+          async with SessionLocal() as db:
+            db.add(edit_log)
+            await db.commit()
+        except Exception as e:
+          print(f"Database commit error during logging edit activity: {e}")
+
 
       await manager.publish_to_redis(document_id, user_id, data)
 
@@ -78,3 +112,14 @@ async def document_websocket(websocket: WebSocket, document_id: str, db: AsyncSe
     pass
   finally:
     await manager.disconnect(websocket, document_id, user_id)
+    try:
+      async with SessionLocal() as disconnect_db:
+        leave_log = ActivityLog(
+          user_id=UUID(user_id),
+          document_id=valid_uuid,
+          action="leave"
+        )
+        disconnect_db.add(leave_log)
+        await disconnect_db.commit()
+    except Exception as e:
+      print(f"Database commit error during logging leave activity: {e}")

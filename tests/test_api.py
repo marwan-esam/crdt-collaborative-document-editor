@@ -52,3 +52,25 @@ async def test_rate_limiter_active(async_client):
     responses.append(res.status_code)
 
   assert 429 in responses
+
+
+async def test_document_analytics(async_client):
+  doc_response = await async_client.post(
+    "/documents/",
+    json={"title": "Analytics Test Document"},
+    headers={"Authorization": f"Bearer {state["token"]}"}
+  )
+
+  doc_id = doc_response.json()["id"]
+
+  analytics_response = await async_client.get(
+    f"/documents/{doc_id}/analytics",
+    headers={"Authorization": f"Bearer {state["token"]}"}
+  )
+
+  assert analytics_response.status_code == 200
+
+  data = analytics_response.json()
+
+  assert "top_contributors" in data
+  assert type(data["top_contributors"]) is list

@@ -1,6 +1,7 @@
 import pytest
 import pytest_asyncio
 import app.services.socket_manager as manager
+import app.api.websockets as ws_router
 from httpx import AsyncClient, ASGITransport
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 from sqlalchemy.pool import NullPool
@@ -13,6 +14,7 @@ manager.settings.REDIS_URL = "redis://redis-test:6379"
 engine_test = create_async_engine(TEST_DATABASE_URL, poolclass=NullPool)
 TestingSessionLocal = async_sessionmaker(autocommit=False, autoflush=True, bind=engine_test)
 manager.SessionLocal = TestingSessionLocal
+ws_router.SessionLocal = TestingSessionLocal
 
 @pytest_asyncio.fixture(scope="session", autouse=True)
 async def setup_database():
