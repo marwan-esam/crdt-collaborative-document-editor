@@ -15,4 +15,4 @@ USER app
 
 ENTRYPOINT ["/entrypoint.sh"]
 
-CMD ["gunicorn", "app.main:app", "--access-logfile", "-", "--error-logfile", "-", "--workers", "4", "--worker-class", "uvicorn.workers.UvicornWorker", "--bind", "0.0.0.0:8000"]
+CMD ["gunicorn", "app.main:app", "--access-logfile", "-", "--error-logfile", "-", "--workers", "2", "--worker-class", "uvicorn.workers.UvicornWorker", "--bind", "0.0.0.0:8000"]
