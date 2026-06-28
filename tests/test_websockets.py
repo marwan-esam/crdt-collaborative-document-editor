@@ -7,7 +7,8 @@ from app.main import app
 def setup_test_document(client: TestClient) -> tuple[str, str]:
   test_user = {
     "email": f"ws_{uuid.uuid4().hex[:8]}@example.com",
-    "password": "secure"
+    "username": f"ws_{uuid.uuid4().hex[:8]}",
+    "password": "Secure_WS_Password1!"
   }
 
   client.post("/auth/register", json=test_user)
