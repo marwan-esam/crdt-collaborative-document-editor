@@ -128,7 +128,7 @@ async def delete_document(
 
   try: 
       if is_owner:
-        db.delete(doc)
+        await db.delete(doc)
       else:
           doc.collaborators.remove(user_to_remove)
       
