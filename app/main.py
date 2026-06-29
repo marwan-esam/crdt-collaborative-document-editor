@@ -29,7 +29,8 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="Real-Time Docs API", lifespan=lifespan)
 
 origins = [
-  "*",
+  "http://localhost:5173",
+  "http://localhost:5174",
 ]
 
 app.add_middleware(
