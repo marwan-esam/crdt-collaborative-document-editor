@@ -4,10 +4,11 @@ import jwt
 from uuid import UUID
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, status
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 from app.services.socket_manager import manager
 from app.core.config import settings
 from app.db.database import SessionLocal
-from app.domain.models import Document, ActivityLog
+from app.domain.models import Document, ActivityLog, User
 
 router = APIRouter()
 
@@ -63,6 +64,20 @@ async def document_websocket(websocket: WebSocket, document_id: str):
     )
     async with SessionLocal() as db:
       db.add(join_log)
+      doc_result = await db.execute(
+        select(Document).options(
+          selectinload(Document.collaborators)
+        ).where(Document.id == valid_uuid)
+      )
+      doc_record = doc_result.scalar_one_or_none()
+
+      if doc_record and doc_record.owner_id != UUID(user_id):
+        if not any(c.id == UUID(user_id) for c in doc_record.collaborators):
+          user_result = await db.execute(select(User).where(User.id == UUID(user_id)))
+          user_record = user_result.scalar_one_or_none()
+          if user_record:
+            doc_record.collaborators.append(user_record)
+
       await db.commit()
     
   except asyncio.TimeoutError:
