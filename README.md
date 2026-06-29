@@ -43,14 +43,14 @@ docker compose exec api pytest
 * **`POST /auth/register`**
   * Payload: `{"email": "user@example.com", "username": "marwan123", "password": "StrictPassword1!"}`
   * *Note: Passwords must be >= 8 chars and contain uppercase, lowercase, numbers, and symbols.*
-  * Returns: `201 Created` | `{"id": "uuid", "email": "user@example.com"}`
+  * Returns: `201 Created` | `{"id": "uuid", "email": "user@example.com", "username": "marwan123"}`
 * **`POST /auth/login`**
   * Format: `application/x-www-form-urlencoded` (OAuth2 Standard)
   * Payload: `username=user@example.com&password=StrictPassword1!`
   * Returns: `200 OK` | `{"access_token": "jwt...", "token_type": "bearer"}`
 * **`GET /auth/me`**
   * Headers: `Authorization: Bearer <token>`
-  * Returns: `200 OK` | `{"user_id": "uuid"}`
+  * Returns: `200 OK` | `{"id": "uuid", "email": "user@example.com", "username": "marwan123"}`
 
 ### Workspace & Documents (`/documents`)
 * **`GET /documents/`** (Requires Auth)
@@ -60,7 +60,8 @@ docker compose exec api pytest
   * Headers: `Authorization: Bearer <token>`
   * Payload: `{"title": "My Document"}`
   * Returns: `200 OK` | `{"id": "uuid", "title": "My Document"}`
-* **`GET /documents/{document_id}`** (Public)
+* **`GET /documents/{document_id}`** (Requires Auth)
+  * Headers: `Authorization: Bearer <token>`
   * Returns: `200 OK` | `{"id": "uuid", "title": "My Document"}`
 * **`DELETE /documents/{document_id}`** (Requires Auth)
   * Headers: `Authorization: Bearer <token>`
@@ -73,7 +74,7 @@ docker compose exec api pytest
   * Returns: `200 OK` | `[{"id": "uuid", "username": "marwan123"}]`
 * **`GET /documents/{document_id}/analytics`** (Requires Auth)
   * Headers: `Authorization: Bearer <token>`
-  * Returns: `200 OK` | Complex SQL aggregations showing top contributors and edit counts.
+  * Returns: `200 OK` | `{"document_id": "uuid", "top_contributors": [{"username": "marwan123", "user_id": "uuid", "total_edits": 7, "rank": 1}]}`
 
 ---
 

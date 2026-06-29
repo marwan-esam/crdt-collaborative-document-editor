@@ -1,3 +1,4 @@
+from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -59,12 +60,21 @@ async def login(request: Request, form_data: OAuth2PasswordRequestForm = Depends
     )
   
 
-  access_token = create_access_token(data={"sub": str(user.id)})
+  access_token = create_access_token(data={
+    "sub": str(user.id),
+    "username": user.username
+  })
 
   return {"access_token": access_token, "token_type": "bearer"}
 
 
-@router.get("/me")
+@router.get("/me", response_model=UserResponse)
 @limiter.limit("20/minute")
-def get_my_profile(request: Request, user_id: str = Depends(get_current_user_id)):
-  return {"user_id": user_id}
+async def get_my_profile(request: Request, user_id: str = Depends(get_current_user_id), db: AsyncSession = Depends(get_db)):
+  result = await db.execute(select(User).where(User.id == UUID(user_id)))
+  user = result.scalar_one_or_none()
+
+  if not user:
+    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+  
+  return user

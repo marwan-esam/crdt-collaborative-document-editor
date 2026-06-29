@@ -82,16 +82,18 @@ async def get_document_analytics(
 
 
   rank_query = select(
+    User.username,
     edits_cte.c.user_id,
     edits_cte.c.total_edits,
     func.rank().over(order_by=edits_cte.c.total_edits.desc()).label("contributor_rank")
-  )
+  ).join(User, User.id == edits_cte.c.user_id)
 
   result = await db.execute(rank_query)
   rows = result.all()
 
   analytics = [
     {
+      "username": row.username,
       "user_id": row.user_id,
       "total_edits": row.total_edits,
       "rank": row.contributor_rank
