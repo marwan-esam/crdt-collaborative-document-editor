@@ -15,8 +15,9 @@ A high-performance, real-time collaborative document editor backend. This system
 ---
 
 ## Live Production Endpoints
-The API is actively deployed and secured via SSL/TLS.
-* **REST API:** `https://api.marwan-crdt-docs.duckdns.org`
+The application is actively deployed and secured via SSL/TLS.
+* **Frontend Web App:** [https://marwan-docs.vercel.app](https://marwan-docs.vercel.app)
+* **REST API Backend:** [https://api.marwan-crdt-docs.duckdns.org](https://api.marwan-crdt-docs.duckdns.org)
 * **WebSocket Engine:** `wss://api.marwan-crdt-docs.duckdns.org/ws/doc/{document_id}`
 
 ---
