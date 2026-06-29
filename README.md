@@ -8,7 +8,7 @@ A high-performance, real-time collaborative document editor backend. This system
 * **Database:** PostgreSQL 16 (Async SQLAlchemy & Alembic)
 * **Real-Time Engine:** WebSockets
 * **Message Broker / Caching:** Redis 7 (Pub/Sub & Distributed Locks)
-* **Security:** JWT Authentication, slowapi Rate Limiting, bcrypt Hashing
+* **Security:** JWT Authentication, slowapi Rate Limiting, bcrypt Hashing, Strict Pydantic Edge Validation, IDOR Mitigation
 * **Infrastructure:** Fully containerized via Docker Compose
 * **Production Deployment:** Oracle Cloud (Ubuntu), Nginx Reverse Proxy, Let's Encrypt SSL
 
@@ -41,26 +41,39 @@ docker compose exec api pytest
 
 ### Authentication (`/auth`)
 * **`POST /auth/register`**
-  * Payload: `{"email": "user@example.com", "password": "secure"}`
+  * Payload: `{"email": "user@example.com", "username": "marwan123", "password": "StrictPassword1!"}`
+  * *Note: Passwords must be >= 8 chars and contain uppercase, lowercase, numbers, and symbols.*
   * Returns: `201 Created` | `{"id": "uuid", "email": "user@example.com"}`
 * **`POST /auth/login`**
   * Format: `application/x-www-form-urlencoded` (OAuth2 Standard)
-  * Payload: `username=user@example.com&password=secure`
+  * Payload: `username=user@example.com&password=StrictPassword1!`
   * Returns: `200 OK` | `{"access_token": "jwt...", "token_type": "bearer"}`
 * **`GET /auth/me`**
   * Headers: `Authorization: Bearer <token>`
   * Returns: `200 OK` | `{"user_id": "uuid"}`
 
-### Documents (`/documents`)
+### Workspace & Documents (`/documents`)
+* **`GET /documents/`** (Requires Auth)
+  * Headers: `Authorization: Bearer <token>`
+  * Returns: `200 OK` | Lists all documents the user owns or actively collaborates on via Many-to-Many junction.
 * **`POST /documents/`** (Requires Auth)
   * Headers: `Authorization: Bearer <token>`
   * Payload: `{"title": "My Document"}`
   * Returns: `200 OK` | `{"id": "uuid", "title": "My Document"}`
 * **`GET /documents/{document_id}`** (Public)
   * Returns: `200 OK` | `{"id": "uuid", "title": "My Document"}`
+* **`DELETE /documents/{document_id}`** (Requires Auth)
+  * Headers: `Authorization: Bearer <token>`
+  * Returns: `204 No Content` | *Protected by IDOR mitigation: Only the original document owner can delete.*
+* **`GET /documents/{document_id}/owner`** (Requires Auth)
+  * Headers: `Authorization: Bearer <token>`
+  * Returns: `200 OK` | `{"id": "uuid", "username": "marwan123"}`
+* **`GET /documents/{document_id}/collaborators`** (Requires Auth)
+  * Headers: `Authorization: Bearer <token>`
+  * Returns: `200 OK` | `[{"id": "uuid", "username": "marwan123"}]`
 * **`GET /documents/{document_id}/analytics`** (Requires Auth)
   * Headers: `Authorization: Bearer <token>`
-  * Returns: `200 OK` | Complex SQL aggregations showing top contributors.
+  * Returns: `200 OK` | Complex SQL aggregations showing top contributors and edit counts.
 
 ---
 
