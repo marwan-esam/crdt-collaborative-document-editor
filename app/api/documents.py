@@ -108,23 +108,30 @@ async def get_document_analytics(
 async def delete_document(
   document_id: UUID,
   db: AsyncSession = Depends(get_db),
-  user_id: UUID = Depends(get_current_user_id)
+  user_id: str = Depends(get_current_user_id)
 ):
-  result = await db.execute(select(Document).where(Document.id == document_id))
+  user_uuid = UUID(user_id)
+  result = await db.execute(select(Document).where(Document.id == document_id).options(selectinload(Document.collaborators)))
   doc = result.scalar_one_or_none()
 
   if not doc:
     raise HTTPException(status_code=404, detail="Document not found")
-  
-  if doc.owner_id != user_id:
-    raise HTTPException(
-      status_code=status.HTTP_403_FORBIDDEN,
-      detail="You do not have permission to delete this document"
-    )
 
   try: 
     async with db.begin():
-     db.delete(doc)
+      if doc.owner_id == user_uuid:
+        db.delete(doc)
+      else:
+        user_to_remove = next((u for u in doc.collaborators if u.id == user_uuid), None)
+
+        if user_to_remove:
+          doc.collaborators.remove(user_to_remove)
+        else:
+          raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have permission to modify this document"
+          )
+        
   except SQLAlchemyError as e:
     print(f"Datbase crash: {e}")
     raise HTTPException(

@@ -65,7 +65,7 @@ docker compose exec api pytest
   * Returns: `200 OK` | `{"id": "uuid", "title": "My Document"}`
 * **`DELETE /documents/{document_id}`** (Requires Auth)
   * Headers: `Authorization: Bearer <token>`
-  * Returns: `204 No Content` | *Protected by IDOR mitigation: Only the original document owner can delete.*
+  * Returns: `204 No Content` | *Dynamic Endpoint: If the user is the owner, the document is permanently deleted. If the user is a collaborator, they are safely removed from the shared workspace.*
 * **`GET /documents/{document_id}/owner`** (Requires Auth)
   * Headers: `Authorization: Bearer <token>`
   * Returns: `200 OK` | `{"id": "uuid", "username": "marwan123"}`
