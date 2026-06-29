@@ -116,24 +116,27 @@ async def delete_document(
 
   if not doc:
     raise HTTPException(status_code=404, detail="Document not found")
+  
+  is_owner = doc.owner_id == user_uuid
+  user_to_remove = next((u for u in doc.collaborators if u.id == user_uuid), None)
+
+  if not is_owner and not user_to_remove:
+    raise HTTPException(
+      status_code=status.HTTP_403_FORBIDDEN,
+      detail="You do not have permission to modify this document"
+    )
 
   try: 
-    async with db.begin():
-      if doc.owner_id == user_uuid:
+      if is_owner:
         db.delete(doc)
       else:
-        user_to_remove = next((u for u in doc.collaborators if u.id == user_uuid), None)
-
-        if user_to_remove:
           doc.collaborators.remove(user_to_remove)
-        else:
-          raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="You do not have permission to modify this document"
-          )
+      
+      await db.commit()
         
   except SQLAlchemyError as e:
-    print(f"Datbase crash: {e}")
+    await db.rollback()
+    print(f"Database crash: {e}")
     raise HTTPException(
       status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
       detail="Database internal error occurred"
