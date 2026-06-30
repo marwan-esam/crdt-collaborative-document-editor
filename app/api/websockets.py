@@ -123,6 +123,9 @@ async def document_websocket(websocket: WebSocket, document_id: str):
 
       await manager.publish_to_redis(document_id, user_id, data)
 
+      leave_payload = json.dumps({"action": "leave", "site_id": user_id})
+      await manager.publish_to_redis(document_id, user_id, leave_payload)
+
   except WebSocketDisconnect:
     pass
   finally:
