@@ -51,7 +51,7 @@ async def document_websocket(websocket: WebSocket, document_id: str):
       return
     
     payload = jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
-    user_id: str = payload.get("sub")
+    user_id: str = payload.get("sub") or payload.get("id")
 
     if not user_id:
       await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
@@ -108,17 +108,17 @@ async def document_websocket(websocket: WebSocket, document_id: str):
       
       if not has_edited:
         has_edited = True
-        edit_log = ActivityLog(
-          user_id=UUID(user_id),
-          document_id=valid_uuid,
-          action="edit"
-        )
         try:
+          edit_log = ActivityLog(
+            user_id=UUID(user_id),
+            document_id=valid_uuid,
+            action="edit"
+          )
           async with SessionLocal() as db:
             db.add(edit_log)
             await db.commit()
         except Exception as e:
-          print(f"Database commit error during logging edit activity: {e}")
+          print(f"Failed to log the edit activity: {e}")
 
 
       await manager.publish_to_redis(document_id, user_id, data)
@@ -128,7 +128,7 @@ async def document_websocket(websocket: WebSocket, document_id: str):
     pass
   finally:
     await manager.disconnect(websocket, document_id, user_id)
-    
+
     leave_payload = json.dumps({"action": "leave", "site_id": user_id})
     await manager.publish_to_redis(document_id, user_id, leave_payload)
     try:
